@@ -1,40 +1,34 @@
-/*************************************************** 
+/***************************************************
   This is an example for the Adafruit CC3000 Wifi Breakout & Shield
 
   Designed specifically to work with the Adafruit WiFi products:
   ----> https://www.adafruit.com/products/1469
 
-  Adafruit invests time and resources providing this open source code, 
-  please support Adafruit and open-source hardware by purchasing 
+  Adafruit invests time and resources providing this open source code,
+  please support Adafruit and open-source hardware by purchasing
   products from Adafruit!
 
-  Written by Kevin Townsend & Limor Fried for Adafruit Industries.  
-  BSD license, all text above must be included in any redistribution
+  Written by Limor Fried, Kevin Townsend and Phil Burgess for
+  Adafruit Industries.  BSD license, all text above must be included
+  in any redistribution
  ****************************************************/
 
 /*
+This example queries an NTP time server to get the current "UNIX time"
+(seconds since 1/1/1970, UTC (GMT)), then uses the Arduino's internal
+timer to keep relative time.  The clock is re-synchronized roughly
+once per day.  This minimizes NTP server misuse/abuse.
 
-This example does a full test of core connectivity:
-* Initialization
-* SSID Scan
-* AP connection
-* DHCP printout
-* DNS lookup
-* Ping
-* Disconnect
-It's a good idea to run this sketch when first setting up the
-module.
-
+The RTClib library (a separate download, and not used here) contains
+functions to convert UNIX time to other formats if needed.
 */
 
 #include <Adafruit_CC3000.h>
 #include <ccspi.h>
 #include <SPI.h>
-#include <string.h>
-#include "utility/debug.h"
 
 // These are the interrupt and control pins
-#define ADAFRUIT_CC3000_IRQ   3  // MUST be an interrupt pin!
+#define ADAFRUIT_CC3000_IRQ   7  // MUST be an interrupt pin!
 // These can be any two pins
 #define ADAFRUIT_CC3000_VBAT  5
 #define ADAFRUIT_CC3000_CS    10
@@ -48,40 +42,31 @@ Adafruit_CC3000 cc3000 = Adafruit_CC3000(ADAFRUIT_CC3000_CS, ADAFRUIT_CC3000_IRQ
 // Security can be WLAN_SEC_UNSEC, WLAN_SEC_WEP, WLAN_SEC_WPA or WLAN_SEC_WPA2
 #define WLAN_SECURITY   WLAN_SEC_WPA2
 
+Adafruit_CC3000_Client client;
+
+const unsigned long
+  connectTimeout  = 15L * 1000L, // Max time to wait for server connection
+  responseTimeout = 15L * 1000L; // Max time to wait for data from server
+int
+  countdown       = 0;  // loop() iterations until next time server query
+unsigned long
+  lastPolledTime  = 0L, // Last value retrieved from time server
+  sketchTime      = 0L; // CPU milliseconds since last server query
 
 
-/**************************************************************************/
-/*!
-    @brief  Sets up the HW and the CC3000 module (called automatically
-            on startup)
-*/
-/**************************************************************************/
 void setup(void)
 {
   Serial.begin(115200);
   Serial.println(F("Hello, CC3000!\n")); 
 
   displayDriverMode();
-  Serial.print("Free RAM: "); Serial.println(getFreeRam(), DEC);
   
-  /* Initialise the module */
   Serial.println(F("\nInitialising the CC3000 ..."));
-  if (!cc3000.begin())
-  {
+  if (!cc3000.begin()) {
     Serial.println(F("Unable to initialise the CC3000! Check your wiring?"));
-    while(1);
+    for(;;);
   }
 
-  /* Optional: Update the Mac Address to a known value */
-/*
-  uint8_t macAddress[6] = { 0x08, 0x00, 0x28, 0x01, 0x79, 0xB7 };
-   if (!cc3000.setMacAddress(macAddress))
-   {
-     Serial.println(F("Failed trying to update the MAC address"));
-     while(1);
-   }
-*/
-  
   uint16_t firmware = checkFirmwareVersion();
   if (firmware < 0x113) {
     Serial.println(F("Wrong firmware version!"));
@@ -90,56 +75,17 @@ void setup(void)
   
   displayMACAddress();
   
-  /* Optional: Get the SSID list (not available in 'tiny' mode) */
-#ifndef CC3000_TINY_DRIVER
-  listSSIDResults();
-#endif
-  
-  /* Delete any old connection data on the module */
   Serial.println(F("\nDeleting old connection profiles"));
   if (!cc3000.deleteProfiles()) {
     Serial.println(F("Failed!"));
     while(1);
   }
 
-  /* Optional: Set a static IP address instead of using DHCP.
-     Note that the setStaticIPAddress function will save its state
-     in the CC3000's internal non-volatile memory and the details
-     will be used the next time the CC3000 connects to a network.
-     This means you only need to call the function once and the
-     CC3000 will remember the connection details.  To switch back
-     to using DHCP, call the setDHCP() function (again only needs
-     to be called once).
-  */
-  /*
-  uint32_t ipAddress = cc3000.IP2U32(192, 168, 1, 19);
-  uint32_t netMask = cc3000.IP2U32(255, 255, 255, 0);
-  uint32_t defaultGateway = cc3000.IP2U32(192, 168, 1, 1);
-  uint32_t dns = cc3000.IP2U32(8, 8, 4, 4);
-  if (!cc3000.setStaticIPAddress(ipAddress, netMask, defaultGateway, dns)) {
-    Serial.println(F("Failed to set static IP!"));
-    while(1);
-  }
-  */
-  /* Optional: Revert back from static IP addres to use DHCP.
-     See note for setStaticIPAddress above, this only needs to be
-     called once and will be remembered afterwards by the CC3000.
-  */
-  /*
-  if (!cc3000.setDHCP()) {
-    Serial.println(F("Failed to set DHCP!"));
-    while(1);
-  }
-  */
-
   /* Attempt to connect to an access point */
   char *ssid = WLAN_SSID;             /* Max 32 chars */
   Serial.print(F("\nAttempting to connect to ")); Serial.println(ssid);
   
-  /* NOTE: Secure connections are not available in 'Tiny' mode!
-     By default connectToAP will retry indefinitely, however you can pass an
-     optional maximum number of retries (greater than zero) as the fourth parameter.
-  */
+  /* NOTE: Secure connections are not available in 'Tiny' mode! */
   if (!cc3000.connectToAP(WLAN_SSID, WLAN_PASS, WLAN_SECURITY)) {
     Serial.println(F("Failed!"));
     while(1);
@@ -149,46 +95,41 @@ void setup(void)
   
   /* Wait for DHCP to complete */
   Serial.println(F("Request DHCP"));
-  while (!cc3000.checkDHCP())
-  {
+  while (!cc3000.checkDHCP()) {
     delay(100); // ToDo: Insert a DHCP timeout!
-  }  
+  }
 
   /* Display the IP address DNS, Gateway, etc. */  
-  while (! displayConnectionDetails()) {
+  while (!displayConnectionDetails()) {
     delay(1000);
   }
-  
-#ifndef CC3000_TINY_DRIVER
-  /* Try looking up www.adafruit.com */
-  uint32_t ip = 0;
-  Serial.print(F("www.adafruit.com -> "));
-  while  (ip  ==  0)  {
-    if  (!  cc3000.getHostByName("www.adafruit.com", &ip))  {
-      Serial.println(F("Couldn't resolve!"));
+}
+
+
+// To reduce load on NTP servers, time is polled once per roughly 24 hour period.
+// Otherwise use millis() to estimate time since last query.  Plenty accurate.
+void loop(void) {
+
+  if(countdown == 0) {            // Time's up?
+    unsigned long t  = getTime(); // Query time server
+    if(t) {                       // Success?
+      lastPolledTime = t;         // Save time
+      sketchTime     = millis();  // Save sketch time of last valid time query
+      countdown      = 24*60*4-1; // Reset counter: 24 hours * 15-second intervals
     }
-    delay(500);
-  }  
-  cc3000.printIPdotsRev(ip);
-  
-  /* Do a quick ping test on adafruit.com */  
-  Serial.print(F("\n\rPinging ")); cc3000.printIPdotsRev(ip); Serial.print("...");  
-  uint8_t replies = cc3000.ping(ip, 5);
-  Serial.print(replies); Serial.println(F(" replies"));
-  if (replies)
-    Serial.println(F("Ping successful!"));
-#endif
+  } else {
+    countdown--;                  // Don't poll; use math to figure current time
+  }
 
-  /* You need to make sure to clean up after yourself or the CC3000 can freak out */
-  /* the next time you try to connect ... */
-  Serial.println(F("\n\nClosing the connection"));
-  cc3000.disconnect();
+  unsigned long currentTime = lastPolledTime + (millis() - sketchTime) / 1000;
+
+  Serial.print(F("Current UNIX time: "));
+  Serial.print(currentTime);
+  Serial.println(F(" (seconds since 1/1/1970 UTC)"));
+
+  delay(15000L); // Pause 15 seconds
 }
 
-void loop(void)
-{
-  delay(1000);
-}
 
 /**************************************************************************/
 /*!
@@ -285,36 +226,53 @@ bool displayConnectionDetails(void)
   }
 }
 
-/**************************************************************************/
-/*!
-    @brief  Begins an SSID scan and prints out all the visible networks
-*/
-/**************************************************************************/
+// Minimalist time server query; adapted from Adafruit Gutenbird sketch,
+// which in turn has roots in Arduino UdpNTPClient tutorial.
+unsigned long getTime(void) {
 
-void listSSIDResults(void)
-{
-  uint8_t valid, rssi, sec, index;
-  char ssidname[33]; 
+  uint8_t       buf[48];
+  unsigned long ip, startTime, t = 0L;
 
-  index = cc3000.startSSIDscan();
+  Serial.print(F("Locating time server..."));
 
-  Serial.print(F("Networks found: ")); Serial.println(index);
-  Serial.println(F("================================================"));
+  // Hostname to IP lookup; use NTP pool (rotates through servers)
+  if(cc3000.getHostByName("pool.ntp.org", &ip)) {
+    static const char PROGMEM
+      timeReqA[] = { 227,  0,  6, 236 },
+      timeReqB[] = {  49, 78, 49,  52 };
 
-  while (index) {
-    index--;
+    Serial.println(F("\r\nAttempting connection..."));
+    startTime = millis();
+    do {
+      client = cc3000.connectUDP(ip, 123);
+    } while((!client.connected()) &&
+            ((millis() - startTime) < connectTimeout));
 
-    valid = cc3000.getNextSSID(&rssi, &sec, ssidname);
-    
-    Serial.print(F("SSID Name    : ")); Serial.print(ssidname);
-    Serial.println();
-    Serial.print(F("RSSI         : "));
-    Serial.println(rssi);
-    Serial.print(F("Security Mode: "));
-    Serial.println(sec);
-    Serial.println();
+    if(client.connected()) {
+      Serial.print(F("connected!\r\nIssuing request..."));
+
+      // Assemble and issue request packet
+      memset(buf, 0, sizeof(buf));
+      memcpy_P( buf    , timeReqA, sizeof(timeReqA));
+      memcpy_P(&buf[12], timeReqB, sizeof(timeReqB));
+      client.write(buf, sizeof(buf));
+
+      Serial.print(F("\r\nAwaiting response..."));
+      memset(buf, 0, sizeof(buf));
+      startTime = millis();
+      while((!client.available()) &&
+            ((millis() - startTime) < responseTimeout));
+      if(client.available()) {
+        client.read(buf, sizeof(buf));
+        t = (((unsigned long)buf[40] << 24) |
+             ((unsigned long)buf[41] << 16) |
+             ((unsigned long)buf[42] <<  8) |
+              (unsigned long)buf[43]) - 2208988800UL;
+        Serial.print(F("OK\r\n"));
+      }
+      client.close();
+    }
   }
-  Serial.println(F("================================================"));
-
-  cc3000.stopSSIDscan();
+  if(!t) Serial.println(F("error"));
+  return t;
 }

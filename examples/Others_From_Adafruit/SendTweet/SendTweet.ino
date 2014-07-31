@@ -94,7 +94,7 @@ POSSIBILITY OF SUCH DAMAGE.
 // Configurable globals and defines.  Edit to your needs. -------------------
 
 // CC3000 interrupt and control pins
-#define ADAFRUIT_CC3000_IRQ   3 // MUST be an interrupt pin!
+#define ADAFRUIT_CC3000_IRQ   7 // MUST be an interrupt pin!
 #define ADAFRUIT_CC3000_VBAT  5 // These can be
 #define ADAFRUIT_CC3000_CS   10 // any two pins
 // Hardware SPI required for remaining pins.
