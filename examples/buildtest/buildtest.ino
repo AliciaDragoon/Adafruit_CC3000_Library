@@ -44,7 +44,7 @@ Adafruit_CC3000 cc3000 = Adafruit_CC3000(ADAFRUIT_CC3000_CS, ADAFRUIT_CC3000_IRQ
 //Please enter the SSID and password of the router you want to connect
 
 #define WLAN_SSID       "myNetwork"        // cannot be longer than 32 characters!
-#define WLAN_PASS       "myPassword"
+#define WLAN_PASS       "myPassword"	   // 
 
 // Security can be WLAN_SEC_UNSEC, WLAN_SEC_WEP, WLAN_SEC_WPA or WLAN_SEC_WPA2
 #define WLAN_SECURITY   WLAN_SEC_WPA2
@@ -60,7 +60,7 @@ void setup(void)
   
   
   displayDriverMode();
-  //Measure the free Ram
+  // Measure the free Ram
   Serial.print("Free RAM: "); Serial.println(getFreeRam(), DEC); 
   
   /* Initialise the module */
@@ -159,18 +159,18 @@ void setup(void)
   }
   
 #ifndef CC3000_TINY_DRIVER
-  /* Try looking up www.adafruit.com */
+  /* Try looking up cn.bing.com */
   uint32_t ip = 0;
-  Serial.print(F("www.baidu.com -> "));
+  Serial.print(F("cn.bing.com -> "));
   while  (ip  ==  0)  {
-    if  (!  cc3000.getHostByName("www.baidu.com", &ip))  {
+    if  (!  cc3000.getHostByName("cn.bing.com", &ip))  {
       Serial.println(F("Couldn't resolve!"));
     }
     delay(500);
   }  
   cc3000.printIPdotsRev(ip);
   
-  /* Do a quick ping test on adafruit.com */  
+  /* Do a quick ping test on cn.bing.com */  
   Serial.print(F("\n\rPinging ")); cc3000.printIPdotsRev(ip); Serial.print("...");  
   uint8_t replies = cc3000.ping(ip, 5);
   Serial.print(replies); Serial.println(F(" replies"));
