@@ -161,9 +161,9 @@ void setup(void)
 #ifndef CC3000_TINY_DRIVER
   /* Try looking up www.adafruit.com */
   uint32_t ip = 0;
-  Serial.print(F("www.adafruit.com -> "));
+  Serial.print(F("www.baidu.com -> "));
   while  (ip  ==  0)  {
-    if  (!  cc3000.getHostByName("www.adafruit.com", &ip))  {
+    if  (!  cc3000.getHostByName("www.baidu.com", &ip))  {
       Serial.println(F("Couldn't resolve!"));
     }
     delay(500);
