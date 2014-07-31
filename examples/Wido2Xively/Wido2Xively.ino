@@ -14,8 +14,8 @@ const int chipSelect = 4;
 Adafruit_CC3000 WiDo = Adafruit_CC3000(WiDo_CS, WiDo_IRQ, WiDo_VBAT,
 SPI_CLOCK_DIVIDER); // you can change this clock speed
 
-#define WLAN_SSID       "DFRobot WIFI"           // cannot be longer than 32 characters!
-#define WLAN_PASS       "DFRobot2014"
+#define WLAN_SSID       "myNetwork"           // cannot be longer than 32 characters!
+#define WLAN_PASS       "myPassword"
 // Security can be WLAN_SEC_UNSEC, WLAN_SEC_WEP, WLAN_SEC_WPA or WLAN_SEC_WPA2
 #define WLAN_SECURITY   WLAN_SEC_WPA2
 
@@ -23,10 +23,10 @@ SPI_CLOCK_DIVIDER); // you can change this clock speed
 #define TCP_TIMEOUT      3000
 
 #define CC3000_TINY_DRIVER
-//
+
 #define WEBSITE  "api.xively.com"
-#define API_key  "Nm8vxZaYtkCreW9oBL74VIxY93ONHsvNlpizj6QkIM8hCXwT"
-#define feedID  "1802204668"
+#define API_key  "Nm8vxZaYtkCreW9oBL74VIxY93ONHsvNlpizj6QkIM8h????"  // Update Your API Key
+#define feedID  "180220xxxx"                                         // Update Your own feedID
 
 void setup(){
 
