@@ -1,5 +1,5 @@
 /*************************************************** 
- * This is an example for the DFRobot WiDo - Wifi Integrated IoT lite sensor and control node
+ * This is an example for the DFRobot WiDo - WIFI Integrated IoT lite sensor and control node
  * 
  * Designed specifically to work with the DFRobot WiDo products:
  * 
@@ -10,6 +10,15 @@
  * BSD license, all text above must be included in any redistribution
  * 
  ****************************************************/
+ 
+ /*
+
+This example create a TCP client to work with DFRobot Chinese local community IoT service
+Login DFRobot Chinese IoT Service:
+http://www.dfrobot.com.cn/community
+
+*/
+ 
 #include <Adafruit_CC3000.h>
 #include <ccspi.h>
 #include <SPI.h>

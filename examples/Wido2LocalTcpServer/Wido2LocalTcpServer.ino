@@ -1,3 +1,27 @@
+/*************************************************** 
+ * This is an example for the DFRobot WiDo - Wifi Integrated IoT lite sensor and control node
+ * 
+ * Designed specifically to work with the DFRobot WiDo products:
+ * 
+ * 
+ * The main library is forked from Adafruit
+ * 
+ * Written by Lauren
+ * BSD license, all text above must be included in any redistribution
+ * 
+ ****************************************************/
+ 
+/*
+
+This example create a local TCP client for you to contact with local server
+To get local server tool: 
+https://github.com/Lauren-ED209/Wido-OpenSource-IOT-Node/blob/master/Tools/USR-TCP232-Test.exe
+
+Application:
+*local wifi control for robots
+*private cloud data collection like connecting to Raspberry pi
+
+*/
 
 #include <Adafruit_CC3000.h>
 #include <ccspi.h>

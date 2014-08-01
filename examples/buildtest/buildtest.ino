@@ -13,6 +13,7 @@
  ****************************************************/
 
 /*
+
 Modified the pin configuration for Wido
 This example does a full test of core connectivity:
 * Initialization
