@@ -11,12 +11,12 @@
 Adafruit_CC3000 WiDo = Adafruit_CC3000(WiDo_CS, WiDo_IRQ, WiDo_VBAT,
                                          SPI_CLOCK_DIVIDER); // you can change this clock speed
 
-#define WLAN_SSID       "pocketAP"           // cannot be longer than 32 characters!
-#define WLAN_PASS       "Lauren714412"
+#define WLAN_SSID       "myNetwork"           // cannot be longer than 32 characters!
+#define WLAN_PASS       "myPassword"
 
 // Security can be WLAN_SEC_UNSEC, WLAN_SEC_WEP, WLAN_SEC_WPA or WLAN_SEC_WPA2
 #define WLAN_SECURITY   WLAN_SEC_WPA2
-#define TIMEOUT_MS  1000
+#define TIMEOUT_MS  2000
 
 void setup(){
   
@@ -33,6 +33,8 @@ void setup(){
      By default connectToAP will retry indefinitely, however you can pass an
      optional maximum number of retries (greater than zero) as the fourth parameter.
   */
+  
+  Serial.println(F("Connecting Router/AP"));
   if (!WiDo.connectToAP(WLAN_SSID, WLAN_PASS, WLAN_SECURITY)) {
     Serial.println(F("Failed!"));
     while(1);
@@ -58,8 +60,8 @@ void loop(){
     tcpClient.close();
     
     /* Set the target ip address and connection port */
-    uint32_t ip = WiDo.IP2U32(192,168,1,6);
-    tcpClient = WiDo.connectTCP(ip, 4500);
+    uint32_t ip = WiDo.IP2U32(192,168,0,134);
+    tcpClient = WiDo.connectTCP(ip, 4000);
     
     if(!tcpClient.connected()){
       Serial.println(F("Couldn't connect to server! Make sure TCP Test Tool is running on the server."));
@@ -69,11 +71,12 @@ void loop(){
   else if(millis() - heartRate > 1000){
     heartRate = millis();  // Update time stamp of the microcontroller system
     
-    String clientString = "";
-    clientString = clientString + "Wido Time: " + heartRate/1000 + " s";
+    char clientString[30];
+    sprintf(clientString, "%s%d%s", "Wido heartRate: ",heartRate/1000," s\r\n");
     
-    tcpClient.println(clientString);
     Serial.println(clientString);
+    tcpClient.fastrprintln(clientString);
+
   }
   
   /* Read data until either the connection is closed, or the timeout is reached. */ 
