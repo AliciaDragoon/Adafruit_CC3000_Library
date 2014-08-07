@@ -10,28 +10,30 @@
  * BSD license, all text above must be included in any redistribution
  * 
  ****************************************************/
-
 /*
+This example code is used to connect the Xively cloud service.
 
+The device required is just:
 
-
+1. LM35 low cost temperature sensor or any device you used to upload data
+2. And Wido
 
 */
- 
+
+
 #include <Adafruit_CC3000.h>
 #include <ccspi.h>
 #include <SPI.h>
 #include <avr/wdt.h>
-const int chipSelect = 4;
 
-#define WiDo_IRQ   7
-#define WiDo_VBAT  5
-#define WiDo_CS    10
-Adafruit_CC3000 WiDo = Adafruit_CC3000(WiDo_CS, WiDo_IRQ, WiDo_VBAT,
+#define Wido_IRQ   7
+#define Wido_VBAT  5
+#define Wido_CS    10
+Adafruit_CC3000 Wido = Adafruit_CC3000(Wido_CS, Wido_IRQ, Wido_VBAT,
 SPI_CLOCK_DIVIDER); // you can change this clock speed
 
-#define WLAN_SSID       "DFRobot WIFI"           // cannot be longer than 32 characters!
-#define WLAN_PASS       "DFRobot2014"
+#define WLAN_SSID       "myNetwork"           // cannot be longer than 32 characters!
+#define WLAN_PASS       "myPassword"
 // Security can be WLAN_SEC_UNSEC, WLAN_SEC_WEP, WLAN_SEC_WPA or WLAN_SEC_WPA2
 #define WLAN_SECURITY   WLAN_SEC_WPA2
 
@@ -41,8 +43,8 @@ SPI_CLOCK_DIVIDER); // you can change this clock speed
 #define CC3000_TINY_DRIVER
 
 #define WEBSITE  "api.xively.com"
-#define API_key  "Nm8vxZaYtkCreW9oBL74VIxY93ONHsvNlpizj6QkIM8hCXwT"  // Update Your API Key
-#define feedID  "1802204668"                                         // Update Your own feedID
+#define API_key  "Nm8vxZaYtkCreW9oBL74VIxY93ONHsvNlpizj6QkIM8hxxxx"  // Update Your API Key
+#define feedID  "180220xxxx"                                         // Update Your own feedID
 
 void setup(){
 
@@ -53,6 +55,11 @@ void setup(){
 
   /* Initialise the module */
   Serial.println(F("\nInitialising the CC3000 ..."));
+  if (!Wido.begin())
+  {
+    Serial.println(F("Unable to initialise the CC3000! Check your wiring?"));
+    while(1);
+  }
 
   /* Attempt to connect to an access point */
   char *ssid = WLAN_SSID;             /* Max 32 chars */
@@ -63,7 +70,7 @@ void setup(){
    By default connectToAP will retry indefinitely, however you can pass an
    optional maximum number of retries (greater than zero) as the fourth parameter.
    */
-  if (!WiDo.connectToAP(WLAN_SSID, WLAN_PASS, WLAN_SECURITY)) {
+  if (!Wido.connectToAP(WLAN_SSID, WLAN_PASS, WLAN_SECURITY)) {
     Serial.println(F("Failed!"));
     while(1);
   }
@@ -72,7 +79,7 @@ void setup(){
 
   /* Wait for DHCP to complete */
   Serial.println(F("Request DHCP"));
-  while (!WiDo.checkDHCP())
+  while (!Wido.checkDHCP())
   {
     delay(100); // ToDo: Insert a DHCP timeout!
   }  
@@ -85,24 +92,24 @@ float temp = 0;
 
 void loop(){
 
-  static Adafruit_CC3000_Client WiDoClient;
+  static Adafruit_CC3000_Client WidoClient;
   static unsigned long RetryMillis = 0;
   static unsigned long uploadtStamp = 0;
   static unsigned long sensortStamp = 0;
 
-  if(!WiDoClient.connected() && millis() - RetryMillis > TCP_TIMEOUT){
+  if(!WidoClient.connected() && millis() - RetryMillis > TCP_TIMEOUT){
     // Update the time stamp
     RetryMillis = millis();
 
 
-    Serial.println(F("Unable to connect the Local Server"));
-    WiDoClient.close();
+    Serial.println(F("Try to connect the cloud server"));
+    WidoClient.close();
 
     //Get DFRobot IOT Server IP    
-    ip = WiDo.IP2U32(216,52,233,120);  //uint32_t ip = cc3000.IP2U32(216,52,233,120);
-    WiDoClient = WiDo.connectTCP(ip, 80);
+    ip = Wido.IP2U32(216,52,233,120);  //uint32_t ip = cc3000.IP2U32(216,52,233,120);
+    WidoClient = Wido.connectTCP(ip, 80);
   }
-  else if(WiDoClient.connected() && millis() - uploadtStamp > 2000){
+  else if(WidoClient.connected() && millis() - uploadtStamp > 2000){
     uploadtStamp = millis();
     // If the device is connected to the cloud server, upload the data every 2000ms.
     
@@ -124,19 +131,19 @@ void loop(){
     
     // Send headers
     Serial.print(F("Sending headers"));
-    WiDoClient.fastrprint(F("PUT /v2/feeds/"));
-    WiDoClient.fastrprint(feedID);
-    WiDoClient.fastrprintln(F(".json HTTP/1.0"));
+    WidoClient.fastrprint(F("PUT /v2/feeds/"));
+    WidoClient.fastrprint(feedID);
+    WidoClient.fastrprintln(F(".json HTTP/1.0"));
     Serial.print(F("."));
-    WiDoClient.fastrprintln(F("Host: api.xively.com"));
+    WidoClient.fastrprintln(F("Host: api.xively.com"));
     Serial.print(F("."));
-    WiDoClient.fastrprint(F("X-ApiKey: "));
-    WiDoClient.fastrprintln(API_key);
+    WidoClient.fastrprint(F("X-ApiKey: "));
+    WidoClient.fastrprintln(API_key);
     Serial.print(F("."));
-    WiDoClient.fastrprint(F("Content-Length: "));
-    WiDoClient.println(length);
+    WidoClient.fastrprint(F("Content-Length: "));
+    WidoClient.println(length);
     Serial.print(F("."));
-    WiDoClient.fastrprint(F("Connection: close"));
+    WidoClient.fastrprint(F("Connection: close"));
     Serial.println(F(" done."));
     
     // Reset watchdog
@@ -144,13 +151,13 @@ void loop(){
     
     // Send data
     Serial.print(F("Sending data"));
-    WiDoClient.fastrprintln(F(""));    
-    WiDoClient.print(data_start);
+    WidoClient.fastrprintln(F(""));    
+    WidoClient.print(data_start);
     Serial.print(F("."));
     wdt_reset();
-    WiDoClient.print(data_temperature);
+    WidoClient.print(data_temperature);
     Serial.print(F("."));
-    WiDoClient.fastrprintln(F(""));
+    WidoClient.fastrprintln(F(""));
     Serial.println(F(" done."));
     
     // Reset watchdog
@@ -158,9 +165,9 @@ void loop(){
     
     /* Get the http page info
     Serial.println(F("Reading answer..."));
-    while (WiDoClient.connected()) {
-      while (WiDoClient.available()) {
-        char c = WiDoClient.read();
+    while (WidoClient.connected()) {
+      while (WidoClient.available()) {
+        char c = WidoClient.read();
         Serial.print(c);
       }
     }
