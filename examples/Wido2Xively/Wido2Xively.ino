@@ -1,7 +1,23 @@
-#include <Metro.h>
-Metro TempMetro = Metro(100,true);
-Metro uploadMetro = Metro(2000,true);
+/*************************************************** 
+ * This is an example for the DFRobot Wido - Wifi Integrated IoT lite sensor and control node
+ * 
+ * Designed specifically to work with the DFRobot Wido products:
+ * 
+ * 
+ * The main library is forked from Adafruit
+ * 
+ * Written by Lauren
+ * BSD license, all text above must be included in any redistribution
+ * 
+ ****************************************************/
 
+/*
+
+
+
+
+*/
+ 
 #include <Adafruit_CC3000.h>
 #include <ccspi.h>
 #include <SPI.h>
@@ -14,8 +30,8 @@ const int chipSelect = 4;
 Adafruit_CC3000 WiDo = Adafruit_CC3000(WiDo_CS, WiDo_IRQ, WiDo_VBAT,
 SPI_CLOCK_DIVIDER); // you can change this clock speed
 
-#define WLAN_SSID       "myNetwork"           // cannot be longer than 32 characters!
-#define WLAN_PASS       "myPassword"
+#define WLAN_SSID       "DFRobot WIFI"           // cannot be longer than 32 characters!
+#define WLAN_PASS       "DFRobot2014"
 // Security can be WLAN_SEC_UNSEC, WLAN_SEC_WEP, WLAN_SEC_WPA or WLAN_SEC_WPA2
 #define WLAN_SECURITY   WLAN_SEC_WPA2
 
@@ -25,8 +41,8 @@ SPI_CLOCK_DIVIDER); // you can change this clock speed
 #define CC3000_TINY_DRIVER
 
 #define WEBSITE  "api.xively.com"
-#define API_key  "Nm8vxZaYtkCreW9oBL74VIxY93ONHsvNlpizj6QkIM8h????"  // Update Your API Key
-#define feedID  "180220xxxx"                                         // Update Your own feedID
+#define API_key  "Nm8vxZaYtkCreW9oBL74VIxY93ONHsvNlpizj6QkIM8hCXwT"  // Update Your API Key
+#define feedID  "1802204668"                                         // Update Your own feedID
 
 void setup(){
 
@@ -37,18 +53,6 @@ void setup(){
 
   /* Initialise the module */
   Serial.println(F("\nInitialising the CC3000 ..."));
-//  if (!WiDo.begin())
-//  {
-//    Serial.println(F("Unable to initialise the CC3000! Check your wiring?"));
-//    while(1);
-//  }
-
-  uint16_t firmware = checkFirmwareVersion();
-  if (firmware < 0x113) {
-    Serial.println(F("Wrong firmware version!"));
-    for(;;);
-  } 
-  displayMACAddress();
 
   /* Attempt to connect to an access point */
   char *ssid = WLAN_SSID;             /* Max 32 chars */
@@ -78,10 +82,13 @@ void setup(){
 uint32_t ip = 0;
 float temp = 0;
 
+
 void loop(){
 
   static Adafruit_CC3000_Client WiDoClient;
-  static unsigned long RetryMillis = millis();
+  static unsigned long RetryMillis = 0;
+  static unsigned long uploadtStamp = 0;
+  static unsigned long sensortStamp = 0;
 
   if(!WiDoClient.connected() && millis() - RetryMillis > TCP_TIMEOUT){
     // Update the time stamp
@@ -95,8 +102,10 @@ void loop(){
     ip = WiDo.IP2U32(216,52,233,120);  //uint32_t ip = cc3000.IP2U32(216,52,233,120);
     WiDoClient = WiDo.connectTCP(ip, 80);
   }
-  else if(WiDoClient.connected() && uploadMetro.check()){
-
+  else if(WiDoClient.connected() && millis() - uploadtStamp > 2000){
+    uploadtStamp = millis();
+    // If the device is connected to the cloud server, upload the data every 2000ms.
+    
     wdt_enable(WDTO_8S);  
     // Prepare JSON for Xively & get length
     int length = 0;
@@ -158,7 +167,10 @@ void loop(){
     */
   }
 
-  if(TempMetro.check()){
+  if(millis() - sensortStamp > 100){
+    sensortStamp = millis();
+    // read the LM35 sensor value and convert to the degrees every 100ms.
+    
     int reading = analogRead(0);
     temp = reading *0.0048828125*100;
     Serial.print(F("Real Time Temp: ")); 
@@ -189,56 +201,6 @@ void displayDriverMode(void)
 #endif
 }
 
-/**************************************************************************/
-/*!
- @brief  Tries to read the CC3000's internal firmware patch ID
- */
-/**************************************************************************/
-uint16_t checkFirmwareVersion(void)
-{
-  uint8_t major, minor;
-  uint16_t version;
-
-#ifndef CC3000_TINY_DRIVER  
-  if(!WiDo.getFirmwareVersion(&major, &minor))
-  {
-    Serial.println(F("Unable to retrieve the firmware version!\r\n"));
-    version = 0;
-  }
-  else
-  {
-    Serial.print(F("Firmware V. : "));
-    Serial.print(major); 
-    Serial.print(F(".")); 
-    Serial.println(minor);
-    version = major; 
-    version <<= 8; 
-    version |= minor;
-  }
-#endif
-  return version;
-}
-
-
-/**************************************************************************/
-/*!
- @brief  Tries to read the 6-byte MAC address of the CC3000 module
- */
-/**************************************************************************/
-void displayMACAddress(void)
-{
-  uint8_t macAddress[6];
-
-  if(!WiDo.getMacAddress(macAddress))
-  {
-    Serial.println(F("Unable to retrieve MAC Address!\r\n"));
-  }
-  else
-  {
-    Serial.print(F("MAC Address : "));
-    WiDo.printHex((byte*)&macAddress, 6);
-  }
-}
 
 
 
