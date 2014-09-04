@@ -24,7 +24,6 @@ The device required is just:
 #include <Adafruit_CC3000.h>
 #include <ccspi.h>
 #include <SPI.h>
-#include <avr/wdt.h>
 
 #define Wido_IRQ   7
 #define Wido_VBAT  5
@@ -40,8 +39,6 @@ SPI_CLOCK_DIVIDER); // you can change this clock speed
 #define IDLE_TIMEOUT_MS  2000
 #define TCP_TIMEOUT      3000
 
-#define CC3000_TINY_DRIVER
-
 #define WEBSITE  "api.xively.com"
 #define API_key  "Nm8vxZaYtkCreW9oBL74VIxY93ONHsvNlpizj6QkIM8hxxxx"  // Update Your API Key
 #define feedID  "180220xxxx"                                         // Update Your own feedID
@@ -50,8 +47,6 @@ void setup(){
 
   Serial.begin(115200);
   Serial.println(F("Hello, CC3000!\n")); 
-
-  displayDriverMode();
 
   /* Initialise the module */
   Serial.println(F("\nInitialising the CC3000 ..."));
@@ -86,34 +81,35 @@ void setup(){
   
 }
 
-uint32_t ip = 0;
-float temp = 0;
-
+uint32_t ip = 0;    // Store Xively ip address
+float temp = 0;     // Store temporary sensor data for post
 
 void loop(){
 
   static Adafruit_CC3000_Client WidoClient;
-  static unsigned long RetryMillis = 0;
-  static unsigned long uploadtStamp = 0;
-  static unsigned long sensortStamp = 0;
-
+  static unsigned long RetryMillis = 0;  // timer stamp for building the connection
+  static unsigned long uploadtStamp = 0; // timer stamp for posting data to service
+  static unsigned long sensortStamp = 0; // timer stamp for reading data to LM35
+  
+  // Apply for the connection with the cloud service
+  
   if(!WidoClient.connected() && millis() - RetryMillis > TCP_TIMEOUT){
     // Update the time stamp
     RetryMillis = millis();
 
-
     Serial.println(F("Try to connect the cloud server"));
-    WidoClient.close();
 
-    //Get DFRobot IOT Server IP    
-    ip = Wido.IP2U32(216,52,233,120);  //uint32_t ip = cc3000.IP2U32(216,52,233,120);
+    //Get Xively IOT Server IP    
+    ip = Wido.IP2U32(216,52,233,120);
     WidoClient = Wido.connectTCP(ip, 80);
   }
-  else if(WidoClient.connected() && millis() - uploadtStamp > 2000){
+  
+  // After building the connection with the service
+  // Post the sensor data to Xively
+  if(WidoClient.connected() && millis() - uploadtStamp > 2000){
     uploadtStamp = millis();
     // If the device is connected to the cloud server, upload the data every 2000ms.
     
-    wdt_enable(WDTO_8S);  
     // Prepare JSON for Xively & get length
     int length = 0;
     // JSON beginning
@@ -125,7 +121,6 @@ void loop(){
       + String(int(temp)) + "\"}]}";
     // Get length
     length = data_start.length() + data_temperature.length();
-    wdt_reset();
     
     Serial.println(F("Connected to Xively server."));
     
@@ -146,22 +141,15 @@ void loop(){
     WidoClient.fastrprint(F("Connection: close"));
     Serial.println(F(" done."));
     
-    // Reset watchdog
-    wdt_reset();
-    
     // Send data
     Serial.print(F("Sending data"));
     WidoClient.fastrprintln(F(""));    
     WidoClient.print(data_start);
     Serial.print(F("."));
-    wdt_reset();
     WidoClient.print(data_temperature);
     Serial.print(F("."));
     WidoClient.fastrprintln(F(""));
     Serial.println(F(" done."));
-    
-    // Reset watchdog
-    wdt_reset();
     
     /* Get the http page info
     Serial.println(F("Reading answer..."));
@@ -172,8 +160,12 @@ void loop(){
       }
     }
     */
+    delay(1000);             // Wait for 1s to finish posting the data stream
+    WidoClient.close();      // Close the service connection
+    RetryMillis = millis();  // Reset the timer stamp for applying the connection with the service
   }
-
+ 
+  //Realtime update the latest sensor data from LM35 once per 100ms and convert the unit (degree)
   if(millis() - sensortStamp > 100){
     sensortStamp = millis();
     // read the LM35 sensor value and convert to the degrees every 100ms.
@@ -183,31 +175,6 @@ void loop(){
     Serial.print(F("Real Time Temp: ")); 
     Serial.println(temp); 
   }
+  
 }
-
-
-/**************************************************************************/
-/*!
- @brief  Displays the driver mode (tiny of normal), and the buffer
- size if tiny mode is not being used
- 
- @note   The buffer size and driver mode are defined in cc3000_common.h
- */
-/**************************************************************************/
-void displayDriverMode(void)
-{
-#ifdef CC3000_TINY_DRIVER
-  Serial.println(F("CC3000 is configure in 'Tiny' mode"));
-#else
-  Serial.print(F("RX Buffer : "));
-  Serial.print(CC3000_RX_BUFFER_SIZE);
-  Serial.println(F(" bytes"));
-  Serial.print(F("TX Buffer : "));
-  Serial.print(CC3000_TX_BUFFER_SIZE);
-  Serial.println(F(" bytes"));
-#endif
-}
-
-
-
 
