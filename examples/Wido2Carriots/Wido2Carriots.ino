@@ -5,7 +5,7 @@
  * 
  * The library is forked from Adafruit
  * 
- * Written by Lauren
+ * Contributed by James
  * BSD license, all text above must be included in any redistribution
  * 
  ****************************************************/
@@ -153,6 +153,8 @@ void loop(){
   }
 }
 
+// More details about the Carriots
+// https://www.carriots.com/tutorials
 
 void sendstream2Carriots(String dataType, int value){
 
